@@ -151,29 +151,62 @@ export async function processBridgeRequest(
     }
   }
 
-  // Call Gemini
-  const result = await model.generateContent(parts);
-  const response = result.response;
-  const text = response.text();
+  // Call Gemini with retry logic for rate limits
+  const MAX_RETRIES = 3;
+  let lastError: Error | null = null;
 
-  // Parse and validate the JSON response
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini returned invalid JSON. Please try again.');
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const result = await model.generateContent(parts);
+      const response = result.response;
+      const text = response.text();
+
+      // Parse and validate the JSON response
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw new Error('Gemini returned invalid JSON. Please try again.');
+      }
+
+      // Validate against our Zod schema
+      const validated = BridgeOutputSchema.safeParse(parsed);
+
+      if (!validated.success) {
+        console.error('Gemini output validation failed:', validated.error.format());
+        throw new Error('AI response did not match expected format. Please try again.');
+      }
+
+      return {
+        ...validated.data,
+        timestamp: new Date().toISOString(),
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Check for rate limit / quota errors
+      const msg = lastError.message;
+      if (msg.includes('429') || msg.includes('quota') || msg.includes('Too Many Requests')) {
+        if (msg.includes('limit: 0') || msg.includes('FreeTier')) {
+          // Quota fully exhausted — no point retrying
+          throw new Error(
+            'Gemini API free tier quota exhausted. Please enable billing on your Google AI project at https://aistudio.google.com/apikey or use a new API key.'
+          );
+        }
+
+        // Transient rate limit — retry with exponential backoff
+        if (attempt < MAX_RETRIES - 1) {
+          const delayMs = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+          console.warn(`Rate limited. Retrying in ${delayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`);
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          continue;
+        }
+      }
+
+      // Non-retryable error — throw immediately
+      throw lastError;
+    }
   }
 
-  // Validate against our Zod schema
-  const validated = BridgeOutputSchema.safeParse(parsed);
-
-  if (!validated.success) {
-    console.error('Gemini output validation failed:', validated.error.format());
-    throw new Error('AI response did not match expected format. Please try again.');
-  }
-
-  return {
-    ...validated.data,
-    timestamp: new Date().toISOString(),
-  };
+  throw lastError || new Error('Unexpected error after retries');
 }
