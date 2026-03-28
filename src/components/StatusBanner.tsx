@@ -1,29 +1,20 @@
 'use client';
 
 import React from 'react';
+import { THEME } from '@/lib/constants';
 
 interface StatusBannerProps {
   status: string;
   category: string;
 }
 
-const statusColors: Record<string, string> = {
-  Critical: '#ef4444',
-  Urgent: '#f97316',
-  Informational: '#60a5fa',
-};
-
-const statusIcons: Record<string, string> = {
-  Critical: '🚨',
-  Urgent: '⚠️',
-  Informational: 'ℹ️',
-};
-
 /**
  * Visual banner showing the emergency status and category.
+ * Performance: Uses centralized THEME to avoid redundant lookups.
  */
 export const StatusBanner: React.FC<StatusBannerProps> = ({ status, category }) => {
-  const color = statusColors[status] || '#60a5fa';
+  const config = THEME.status[status as keyof typeof THEME.status] || THEME.status.Informational;
+  const color = config.color;
   
   return (
     <div
@@ -34,8 +25,8 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({ status, category }) 
       }}
       role="alert"
     >
-      <div className="status-icon">
-        {statusIcons[status] || 'ℹ️'}
+      <div className="status-icon" aria-hidden="true">
+        {config.icon}
       </div>
       <div className="status-label" style={{ color }}>
         STATUS: {status}

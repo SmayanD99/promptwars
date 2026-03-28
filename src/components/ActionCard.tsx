@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import DOMPurify from 'isomorphic-dompurify';
+import { THEME } from '@/lib/constants';
 import type { ActionItem } from '@/types';
 
 interface ActionCardProps {
@@ -8,25 +10,16 @@ interface ActionCardProps {
   index: number;
 }
 
-const PRIORITY_ICONS: Record<string, string> = {
-  urgent: '🔴',
-  high: '🟠',
-  medium: '🟡',
-  low: '🔵',
-};
-
-const TYPE_ICONS: Record<string, string> = {
-  call: '📞',
-  navigate: '🗺️',
-  checklist: '✅',
-  link: '🔗',
-  download: '📥',
-  info: 'ℹ️',
-  warning: '⚠️',
-};
-
+/**
+ * Actionable repair or response card.
+ * Security: Sanitizes AI-generated descriptions via DOMPurify to prevent XSS.
+ * Performance: Leverages centralized theme constants for visual consistency.
+ */
 export function ActionCard({ action, index }: ActionCardProps) {
   const [expanded, setExpanded] = useState(false);
+  
+  const config = THEME.priorities[action.priority] || THEME.priorities.low;
+  const typeIcon = THEME.actionTypes[action.type as keyof typeof THEME.actionTypes] || 'ℹ️';
   const hasSteps = action.steps && action.steps.length > 0;
 
   return (
@@ -38,31 +31,17 @@ export function ActionCard({ action, index }: ActionCardProps) {
     >
       <div className="action-card-header">
         <div className={`action-icon priority-${action.priority}`} aria-hidden="true">
-          {TYPE_ICONS[action.type] || 'ℹ️'}
+          {typeIcon}
         </div>
         <span className="action-title">{action.title}</span>
         <span
           className={`priority-label priority-${action.priority}`}
           style={{
-            background:
-              action.priority === 'urgent'
-                ? 'rgba(239,68,68,0.15)'
-                : action.priority === 'high'
-                  ? 'rgba(249,115,22,0.15)'
-                  : action.priority === 'medium'
-                    ? 'rgba(251,191,36,0.15)'
-                    : 'rgba(96,165,250,0.15)',
-            color:
-              action.priority === 'urgent'
-                ? 'var(--color-critical)'
-                : action.priority === 'high'
-                  ? 'var(--color-high)'
-                  : action.priority === 'medium'
-                    ? 'var(--color-medium)'
-                    : 'var(--color-info)',
+            background: config.bg,
+            color: config.color,
           }}
         >
-          {PRIORITY_ICONS[action.priority]} {action.priority}
+          {config.icon} {action.priority}
         </span>
         {action.isPromoted && (
           <span className="header-badge" style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', marginLeft: '0.5rem' }}>
@@ -71,7 +50,10 @@ export function ActionCard({ action, index }: ActionCardProps) {
         )}
       </div>
 
-      <p className="action-description">{action.description}</p>
+      <p 
+        className="action-description"
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(action.description) }}
+      />
 
       {action.rating && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#fbbf24', marginBottom: '8px' }}>
