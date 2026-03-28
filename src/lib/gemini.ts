@@ -2,7 +2,7 @@ import { GoogleGenerativeAI, Part, SchemaType, Tool, FunctionCallingMode } from 
 import { BridgeOutputSchema, type ValidatedBridgeInput } from './schemas';
 import { GEMINI_MODEL } from './constants';
 import type { BridgeOutput } from '@/types';
-import { pulseBridgeTools, get_nearest_hospitals, get_route_traffic } from './tools';
+import { pulseBridgeTools, agenticToolsRegistry } from './tools';
 
 /**
  * PulseBridge Emergency Dispatch Agent system prompt.
@@ -231,14 +231,10 @@ export async function processBridgeRequest(
           functionCalls.map(async (call) => {
             let funcResponseData;
             try {
-              if (call.name === 'get_nearest_hospitals') {
-                const args = call.args as { latitude: number; longitude: number; query?: string; radius?: number };
-                funcResponseData = await get_nearest_hospitals(args);
-              } else if (call.name === 'get_route_traffic') {
-                const args = call.args as { origin_lat: number; origin_lng: number; destination_name: string };
-                funcResponseData = await get_route_traffic(args);
+              if (agenticToolsRegistry[call.name]) {
+                funcResponseData = await agenticToolsRegistry[call.name](call.args);
               } else {
-                funcResponseData = { error: 'Unknown function' };
+                funcResponseData = { error: 'Unknown function: ' + call.name };
               }
             } catch (err) {
               funcResponseData = { error: String(err) };

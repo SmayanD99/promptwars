@@ -5,8 +5,6 @@ const mapsClient = new Client({});
 
 /**
  * Agentic tool function to find nearby hospitals, clinics, or trauma centers.
- * This is exposed to Gemini as a callable function.
- * Since the user has a demo API key, we use textSearch which is generally well-supported.
  */
 export async function get_nearest_hospitals({
   latitude,
@@ -39,7 +37,6 @@ export async function get_nearest_hospitals({
 
     const response = await mapsClient.textSearch(request);
     
-    // Transform output to be concise for Gemini Context
     if (response.data.results && response.data.results.length > 0) {
       return {
         success: true,
@@ -64,14 +61,13 @@ export async function get_nearest_hospitals({
     console.error('Google Maps API Tool Error:', error);
     return {
       success: false,
-      error: 'Failed to fetch places from Google Maps API due to an internal error or quota issue.',
+      error: 'Failed to fetch places from Google Maps API.',
     };
   }
 }
 
 /**
- * Agentic tool function to calculate ETAs and traffic using Google Maps Directions API.
- * This allows Gemini to perform Parallel Tool Calling (fetching hospitals + fetching routing ETAs).
+ * Agentic tool function to calculate ETAs and traffic.
  */
 export async function get_route_traffic({
   origin_lat,
@@ -94,7 +90,7 @@ export async function get_route_traffic({
         origin: `${origin_lat},${origin_lng}`,
         destination: destination_name,
         mode: TravelMode.driving,
-        departure_time: 'now', // triggers traffic calculations
+        departure_time: 'now',
         key: apiKey,
       },
     };
@@ -121,9 +117,36 @@ export async function get_route_traffic({
   }
 }
 
+/**
+ * Agentic tool function to fetch current weather context based on coordinates.
+ */
+export async function get_weather_info({ latitude, longitude }: { latitude: number; longitude: number; }) {
+  try {
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,wind_speed_10m,precipitation,weather_code&timezone=auto`);
+    if (!res.ok) throw new Error('API Response not ok');
+    const data = await res.json();
+    return { success: true, current: data.current };
+  } catch (e) {
+    return { success: false, error: 'Could not fetch weather data.' };
+  }
+}
+
+/**
+ * Agentic tool function to search news and critical alerts online.
+ * Relies on the Google Search functionality by returning an instruction.
+ */
+export async function search_news_alerts({ query }: { query: string; }) {
+  return {
+    success: true,
+    message: `For news and crisis alerts regarding "${query}", the agent should synthesize information from its native Google Search Grounding. No direct API call needed here, this is a marker for the agent's internal reasoning to use Search.`
+  };
+}
+
+// ----- DECLARATIONS -----
+
 const getNearestHospitalsDecl: FunctionDeclaration = {
   name: 'get_nearest_hospitals',
-  description: 'Finds nearby hospitals, clinics, or trauma centers based on latitude and longitude coordinates. Call this when you need real, specific medical facilities to dispatch the user to.',
+  description: 'Finds nearby hospitals, clinics, or trauma centers based on latitude and longitude coordinates. Call this when you need real, specific medical facilities.',
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
@@ -138,15 +161,40 @@ const getNearestHospitalsDecl: FunctionDeclaration = {
 
 const getRouteTrafficDecl: FunctionDeclaration = {
   name: 'get_route_traffic',
-  description: 'Calculates the real-time driving traffic ETA between the user coordinates and a specific destination. Use this in PARALLEL with get_nearest_hospitals if you know a general destination, or sequence it after finding specific hospitals to get exact ETAs.',
+  description: 'Calculates the real-time driving traffic ETA. Use this in PARALLEL with get_nearest_hospitals if you know a general destination.',
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
       origin_lat: { type: SchemaType.NUMBER, description: 'Latitude of the user or emergency' },
       origin_lng: { type: SchemaType.NUMBER, description: 'Longitude of the user or emergency' },
-      destination_name: { type: SchemaType.STRING, description: 'Name or address of the destination (e.g., "General Hospital, Bangalore")' },
+      destination_name: { type: SchemaType.STRING, description: 'Name or address of the destination' },
     },
     required: ['origin_lat', 'origin_lng', 'destination_name'],
+  },
+};
+
+const getWeatherInfoDecl: FunctionDeclaration = {
+  name: 'get_weather_info',
+  description: 'Fetches real-time weather information for the specified coordinates. Highly relevant for natural disasters, fires, or exposure cases.',
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      latitude: { type: SchemaType.NUMBER, description: 'Latitude coordinate' },
+      longitude: { type: SchemaType.NUMBER, description: 'Longitude coordinate' },
+    },
+    required: ['latitude', 'longitude'],
+  },
+};
+
+const searchNewsAlertsDecl: FunctionDeclaration = {
+  name: 'search_news_alerts',
+  description: 'Signals the need to fetch latest news, crisis alerts, or conflict information for a region.',
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      query: { type: SchemaType.STRING, description: 'Search query for the news or alerts (e.g., "War zone updates in X")' },
+    },
+    required: ['query'],
   },
 };
 
@@ -155,7 +203,14 @@ const getRouteTrafficDecl: FunctionDeclaration = {
  */
 export const pulseBridgeTools = [
   {
-    functionDeclarations: [getNearestHospitalsDecl, getRouteTrafficDecl],
+    functionDeclarations: [getNearestHospitalsDecl, getRouteTrafficDecl, getWeatherInfoDecl, searchNewsAlertsDecl],
   },
-  { googleSearch: {} }
+  { googleSearch: {} } // Enable native Google web search capabilities
 ];
+
+export const agenticToolsRegistry: Record<string, Function> = {
+  get_nearest_hospitals: get_nearest_hospitals as Function,
+  get_route_traffic: get_route_traffic as Function,
+  get_weather_info: get_weather_info as Function,
+  search_news_alerts: search_news_alerts as Function,
+};
