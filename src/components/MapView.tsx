@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
+import { Loader } from '@googlemaps/js-api-loader';
 import type { LocationMarker } from '@/types';
 
 interface MapViewProps {
@@ -8,97 +9,168 @@ interface MapViewProps {
 }
 
 /**
- * OpenStreetMap view using Leaflet.
- * Dynamically loaded to avoid SSR issues.
+ * Google Maps view using the official JS API Loader.
+ * Falls back to a location list if the API key is missing.
  */
 export function MapView({ locations }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<L.Map | null>(null);
+  const mapInstanceRef = useRef<google.maps.Map | null>(null);
 
   useEffect(() => {
     if (!mapRef.current || locations.length === 0) return;
 
-    // Dynamically import Leaflet (client-only)
-    const loadMap = async () => {
-      const L = await import('leaflet');
+    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-      // Import leaflet CSS
-      if (!document.querySelector('link[href*="leaflet.css"]')) {
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-        document.head.appendChild(link);
-      }
+    if (!apiKey) {
+      // No API key — skip map rendering, list fallback is shown below
+      return;
+    }
 
-      // Fix default icon paths for Leaflet in Next.js
-      const DefaultIcon = L.icon({
-        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-      });
-      L.Marker.prototype.options.icon = DefaultIcon;
+    const loader = new Loader({
+      apiKey,
+      version: 'weekly',
+    });
 
-      // Destroy previous map if exists
+    let isMounted = true;
+
+    loader.importLibrary('maps').then((mapsLib) => {
+      if (!isMounted || !mapRef.current) return;
+
+      // Clean up previous map
       if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
+        mapRef.current.innerHTML = '';
       }
 
-      // Create map
-      const map = L.map(mapRef.current!, {
-        attributionControl: true,
-      });
+      const { Map } = mapsLib as typeof google.maps;
 
-      // Use dark tile layer
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
-        maxZoom: 19,
-      }).addTo(map);
+      // Calculate center from locations
+      const avgLat = locations.reduce((sum, l) => sum + l.latitude, 0) / locations.length;
+      const avgLng = locations.reduce((sum, l) => sum + l.longitude, 0) / locations.length;
+
+      const map = new Map(mapRef.current!, {
+        center: { lat: avgLat, lng: avgLng },
+        zoom: locations.length === 1 ? 14 : 10,
+        mapId: 'bridgeai-dark-map',
+        // Dark theme styling
+        styles: [
+          { elementType: 'geometry', stylers: [{ color: '#1a2035' }] },
+          { elementType: 'labels.text.stroke', stylers: [{ color: '#1a2035' }] },
+          { elementType: 'labels.text.fill', stylers: [{ color: '#94a3b8' }] },
+          {
+            featureType: 'administrative.locality',
+            elementType: 'labels.text.fill',
+            stylers: [{ color: '#c4b5fd' }],
+          },
+          {
+            featureType: 'poi',
+            elementType: 'labels.text.fill',
+            stylers: [{ color: '#64748b' }],
+          },
+          {
+            featureType: 'poi.park',
+            elementType: 'geometry',
+            stylers: [{ color: '#1a2e1a' }],
+          },
+          {
+            featureType: 'road',
+            elementType: 'geometry',
+            stylers: [{ color: '#2a3555' }],
+          },
+          {
+            featureType: 'road',
+            elementType: 'geometry.stroke',
+            stylers: [{ color: '#1a2035' }],
+          },
+          {
+            featureType: 'road.highway',
+            elementType: 'geometry',
+            stylers: [{ color: '#3a4575' }],
+          },
+          {
+            featureType: 'transit',
+            elementType: 'geometry',
+            stylers: [{ color: '#2a3555' }],
+          },
+          {
+            featureType: 'water',
+            elementType: 'geometry',
+            stylers: [{ color: '#0e1525' }],
+          },
+          {
+            featureType: 'water',
+            elementType: 'labels.text.fill',
+            stylers: [{ color: '#4a5568' }],
+          },
+        ],
+        disableDefaultUI: false,
+        zoomControl: true,
+        mapTypeControl: false,
+        streetViewControl: false,
+        fullscreenControl: true,
+      });
 
       // Add markers
-      const markers = locations.map((loc) => {
-        const marker = L.marker([loc.latitude, loc.longitude]).addTo(map);
-        marker.bindPopup(
-          `<strong>${loc.name}</strong><br/>${loc.type}${loc.address ? `<br/><small>${loc.address}</small>` : ''}`
-        );
-        return marker;
+      const bounds = new google.maps.LatLngBounds();
+
+      locations.forEach((loc) => {
+        const position = { lat: loc.latitude, lng: loc.longitude };
+        bounds.extend(position);
+
+        const marker = new google.maps.Marker({
+          position,
+          map,
+          title: loc.name,
+          animation: google.maps.Animation.DROP,
+        });
+
+        const infoWindow = new google.maps.InfoWindow({
+          content: `
+            <div style="color:#1a2035;padding:4px 0;">
+              <strong style="font-size:14px;">${loc.name}</strong><br/>
+              <span style="color:#64748b;font-size:12px;">${loc.type}</span>
+              ${loc.address ? `<br/><span style="color:#94a3b8;font-size:11px;">${loc.address}</span>` : ''}
+            </div>
+          `,
+        });
+
+        marker.addListener('click', () => {
+          infoWindow.open(map, marker);
+        });
       });
 
-      // Fit bounds
-      if (markers.length > 0) {
-        const group = L.featureGroup(markers);
-        map.fitBounds(group.getBounds().pad(0.3));
+      // Fit bounds if multiple markers
+      if (locations.length > 1) {
+        map.fitBounds(bounds, { top: 30, right: 30, bottom: 30, left: 30 });
       }
 
       mapInstanceRef.current = map;
-    };
-
-    loadMap();
+    }).catch((err) => {
+      console.error('Failed to load Google Maps:', err);
+    });
 
     return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
+      isMounted = false;
     };
   }, [locations]);
 
   if (locations.length === 0) return null;
 
+  const hasApiKey = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
   return (
     <div className="map-section" aria-label="Relevant locations map">
       <h3 className="map-title">📍 Relevant Locations</h3>
-      <div
-        ref={mapRef}
-        className="map-container"
-        role="img"
-        aria-label={`Map showing ${locations.length} location${locations.length === 1 ? '' : 's'}`}
-      />
 
-      {/* Accessible list fallback for screen readers */}
+      {hasApiKey && (
+        <div
+          ref={mapRef}
+          className="map-container"
+          role="img"
+          aria-label={`Map showing ${locations.length} location${locations.length === 1 ? '' : 's'}`}
+        />
+      )}
+
+      {/* Accessible list (always shown as fallback / screen reader support) */}
       <ul className="map-locations-list" aria-label="Location details">
         {locations.map((loc, i) => (
           <li key={i} className="map-location-item">

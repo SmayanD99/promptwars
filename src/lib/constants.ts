@@ -22,7 +22,7 @@ export const RATE_LIMIT_MAX = 10;
 export const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
 /** Gemini model to use */
-export const GEMINI_MODEL = 'gemini-2.0-flash';
+export const GEMINI_MODEL = 'gemini-3-flash-preview';
 
 /** App metadata */
 export const APP_NAME = 'BridgeAI';
