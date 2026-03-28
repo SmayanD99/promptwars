@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { SchemaType, Schema } from '@google/generative-ai';
 import { MAX_FILE_SIZE_BYTES, MAX_TEXT_LENGTH, ALLOWED_MIME_TYPES } from './constants';
 
 /**
@@ -51,6 +52,9 @@ export const ActionItemSchema = z.object({
   url: z.string().optional(),
   phone: z.string().optional(),
   steps: z.array(z.string()).optional(),
+  isPromoted: z.boolean().optional().describe('Google Ads promotion signal'),
+  rating: z.number().optional().describe('Google Business Profile rating'),
+  reviewCount: z.number().optional().describe('Google Business Profile review count'),
 });
 
 /** Schema for a location marker */
@@ -100,7 +104,123 @@ export const BridgeOutputSchema = z.object({
   warnings: z.array(z.string()).describe('Important warnings or caveats'),
   keyFacts: z.array(z.string()).describe('Key facts extracted from the input'),
   sourceVerification: z.string().describe('How the information was verified'),
+  sceneMapUrl: z.string().optional().describe('URL of the static map of the incident scene'),
 });
 
 export type ValidatedBridgeInput = z.infer<typeof BridgeInputSchema>;
 export type ValidatedBridgeOutput = z.infer<typeof BridgeOutputSchema>;
+
+/**
+ * Returns the Gemini-compatible Schema object for the BridgeOutput.
+ * This keeps the main logic clean and leverages the same structure as the Zod schema.
+ */
+export function getBridgeResponseSchema(): Schema {
+  return {
+    type: SchemaType.OBJECT,
+    properties: {
+      status: {
+        type: SchemaType.STRING,
+        format: 'enum',
+        enum: ['Urgent', 'Critical', 'Informational'],
+      },
+      immediateInstruction: { type: SchemaType.STRING },
+      summary: { type: SchemaType.STRING },
+      category: { type: SchemaType.STRING },
+      severity: {
+        type: SchemaType.STRING,
+        format: 'enum',
+        enum: ['info', 'low', 'medium', 'high', 'critical'],
+      },
+      actions: {
+        type: SchemaType.ARRAY,
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            title: { type: SchemaType.STRING },
+            description: { type: SchemaType.STRING },
+            priority: {
+              type: SchemaType.STRING,
+              format: 'enum',
+              enum: ['low', 'medium', 'high', 'urgent'],
+            },
+            type: {
+              type: SchemaType.STRING,
+              format: 'enum',
+              enum: ['call', 'navigate', 'checklist', 'link', 'download', 'info', 'warning'],
+            },
+            url: { type: SchemaType.STRING },
+            phone: { type: SchemaType.STRING },
+            steps: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+            isPromoted: { type: SchemaType.BOOLEAN },
+            rating: { type: SchemaType.NUMBER },
+            reviewCount: { type: SchemaType.NUMBER },
+          },
+          required: ['title', 'description', 'priority', 'type'],
+        },
+      },
+      serviceProviders: {
+        type: SchemaType.ARRAY,
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            name: { type: SchemaType.STRING },
+            specialty: { type: SchemaType.STRING },
+            eta: { type: SchemaType.STRING },
+            contact: { type: SchemaType.STRING },
+            verificationStatus: { type: SchemaType.STRING },
+            latitude: { type: SchemaType.NUMBER },
+            longitude: { type: SchemaType.NUMBER },
+            address: { type: SchemaType.STRING },
+          },
+          required: ['name', 'specialty', 'eta', 'contact', 'verificationStatus'],
+        },
+      },
+      locations: {
+        type: SchemaType.ARRAY,
+        items: {
+          type: SchemaType.OBJECT,
+          properties: {
+            name: { type: SchemaType.STRING },
+            latitude: { type: SchemaType.NUMBER },
+            longitude: { type: SchemaType.NUMBER },
+            type: { type: SchemaType.STRING },
+            address: { type: SchemaType.STRING },
+          },
+          required: ['name', 'latitude', 'longitude', 'type'],
+        },
+      },
+      handoverCard: {
+        type: SchemaType.OBJECT,
+        properties: {
+          emergencyType: { type: SchemaType.STRING },
+          detectedLanguage: { type: SchemaType.STRING },
+          translatedSummary: { type: SchemaType.STRING },
+          entityData: {
+            type: SchemaType.OBJECT,
+            properties: {},
+          },
+          timestamp: { type: SchemaType.STRING },
+        },
+        required: ['emergencyType', 'detectedLanguage', 'translatedSummary', 'entityData', 'timestamp'],
+      },
+      warnings: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+      keyFacts: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
+      sourceVerification: { type: SchemaType.STRING },
+      sceneMapUrl: { type: SchemaType.STRING },
+    },
+    required: [
+      'status',
+      'immediateInstruction',
+      'summary',
+      'category',
+      'severity',
+      'actions',
+      'serviceProviders',
+      'locations',
+      'handoverCard',
+      'warnings',
+      'keyFacts',
+      'sourceVerification',
+    ],
+  };
+}

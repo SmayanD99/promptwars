@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useSyncExternalStore } from 'react';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface SpeechRecognitionLike {
@@ -15,6 +15,12 @@ interface SpeechRecognitionLike {
   abort: () => void;
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
+
+function getSpeechRecognitionSupport(): boolean {
+  if (typeof window === 'undefined') return false;
+  const win = window as unknown as Record<string, unknown>;
+  return !!(win.SpeechRecognition || win.webkitSpeechRecognition);
+}
 
 interface UseVoiceInputReturn {
   isListening: boolean;
@@ -34,14 +40,16 @@ export function useVoiceInput(): UseVoiceInputReturn {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [isSupported, setIsSupported] = useState(false);
+  const isSupported = useSyncExternalStore(
+    () => () => {},
+    getSpeechRecognitionSupport,
+    () => false
+  );
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   useEffect(() => {
-    // Access Web Speech API with browser compatibility
     const win = window as unknown as Record<string, unknown>;
     const SpeechRecognitionCtor = win.SpeechRecognition || win.webkitSpeechRecognition;
-    setIsSupported(!!SpeechRecognitionCtor);
 
     if (SpeechRecognitionCtor) {
       const Ctor = SpeechRecognitionCtor as new () => SpeechRecognitionLike;

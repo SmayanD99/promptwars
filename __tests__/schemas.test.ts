@@ -79,6 +79,8 @@ describe('BridgeInputSchema', () => {
 
 describe('BridgeOutputSchema', () => {
   const validOutput = {
+    status: 'Urgent' as const,
+    immediateInstruction: 'Seek medical care now',
     summary: 'Test summary',
     category: 'Medical',
     severity: 'medium' as const,
@@ -90,7 +92,23 @@ describe('BridgeOutputSchema', () => {
         type: 'navigate' as const,
       },
     ],
+    serviceProviders: [
+      {
+        name: 'City Hospital',
+        specialty: 'Emergency',
+        eta: '15 min',
+        contact: '555-0100',
+        verificationStatus: 'verified',
+      },
+    ],
     locations: [],
+    handoverCard: {
+      emergencyType: 'Medical',
+      detectedLanguage: 'en',
+      translatedSummary: 'Test summary',
+      entityData: { patient: 'unknown' },
+      timestamp: new Date().toISOString(),
+    },
     warnings: ['This is not medical advice'],
     keyFacts: ['Fever detected'],
     sourceVerification: 'Based on general medical knowledge',

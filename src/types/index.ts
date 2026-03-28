@@ -21,6 +21,9 @@ export interface ActionItem {
   url?: string;
   phone?: string;
   steps?: string[];
+  isPromoted?: boolean; // Google Ads promotion signal
+  rating?: number; // Google Business Profile rating
+  reviewCount?: number; // Google Business Profile review count
 }
 
 export interface LocationMarker {
@@ -76,6 +79,7 @@ export interface BridgeOutput {
   keyFacts: string[];
   sourceVerification: string;
   timestamp: string;
+  sceneMapUrl?: string; // Google Maps Static Map for visual scene context
 }
 
 export interface BridgeState {

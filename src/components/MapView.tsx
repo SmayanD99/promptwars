@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { Loader } from '@googlemaps/js-api-loader';
+import { importLibrary, setOptions } from '@googlemaps/js-api-loader';
 import type { LocationMarker } from '@/types';
 
 interface MapViewProps {
@@ -26,14 +26,11 @@ export function MapView({ locations }: MapViewProps) {
       return;
     }
 
-    const loader = new Loader({
-      apiKey,
-      version: 'weekly',
-    });
+    setOptions({ key: apiKey, v: 'weekly' });
 
     let isMounted = true;
 
-    (loader as any).importLibrary('maps').then((mapsLib: any) => {
+    importLibrary('maps').then((mapsLib) => {
       if (!isMounted || !mapRef.current) return;
 
       // Clean up previous map

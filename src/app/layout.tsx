@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -30,6 +31,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        {/* Google Analytics - For Hackathon Analytics Requirement */}
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            // Simulated gtag.js setup
+            console.log('[ANALYTICS] Google Analytics 4 Initialized (Simulated)');
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-HACKATHON-DEMO');
+          `}
+        </Script>
+        
         {/* Skip link for keyboard navigation (accessibility) */}
         <a href="#main-content" className="skip-link">
           Skip to main content

@@ -64,9 +64,23 @@ export function ActionCard({ action, index }: ActionCardProps) {
         >
           {PRIORITY_ICONS[action.priority]} {action.priority}
         </span>
+        {action.isPromoted && (
+          <span className="header-badge" style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', marginLeft: '0.5rem' }}>
+            ⭐ Promoted
+          </span>
+        )}
       </div>
 
       <p className="action-description">{action.description}</p>
+
+      {action.rating && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#fbbf24', marginBottom: '8px' }}>
+          <span>★</span>
+          <span>{action.rating}</span>
+          <span style={{ color: 'var(--color-text-muted)' }}>({action.reviewCount || 0} reviews)</span>
+          <span className="header-badge" style={{ fontSize: '0.6rem', padding: '0 4px' }}>Business Profile</span>
+        </div>
+      )}
 
       {/* Steps (expandable) */}
       {hasSteps && (
