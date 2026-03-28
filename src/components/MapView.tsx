@@ -33,7 +33,7 @@ export function MapView({ locations }: MapViewProps) {
 
     let isMounted = true;
 
-    loader.importLibrary('maps').then((mapsLib) => {
+    (loader as any).importLibrary('maps').then((mapsLib: any) => {
       if (!isMounted || !mapRef.current) return;
 
       // Clean up previous map
@@ -41,7 +41,7 @@ export function MapView({ locations }: MapViewProps) {
         mapRef.current.innerHTML = '';
       }
 
-      const { Map } = mapsLib as typeof google.maps;
+      const { Map } = mapsLib;
 
       // Calculate center from locations
       const avgLat = locations.reduce((sum, l) => sum + l.latitude, 0) / locations.length;
@@ -144,7 +144,7 @@ export function MapView({ locations }: MapViewProps) {
       }
 
       mapInstanceRef.current = map;
-    }).catch((err) => {
+    }).catch((err: unknown) => {
       console.error('Failed to load Google Maps:', err);
     });
 

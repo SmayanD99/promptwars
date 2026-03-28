@@ -79,7 +79,7 @@ export const HandoverCardSchema = z.object({
   emergencyType: z.string(),
   detectedLanguage: z.string(),
   translatedSummary: z.string(),
-  entityData: z.record(z.string()),
+  entityData: z.record(z.string(), z.string()),
   timestamp: z.string(),
 });
 

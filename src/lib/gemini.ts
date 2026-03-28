@@ -272,7 +272,7 @@ export async function processBridgeRequest(
       return {
         ...validated.data,
         timestamp: new Date().toISOString(),
-      };
+      } as BridgeOutput;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
