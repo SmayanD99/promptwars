@@ -2,7 +2,7 @@ import { GoogleGenerativeAI, Part, SchemaType, Tool } from '@google/generative-a
 import { BridgeOutputSchema, type ValidatedBridgeInput } from './schemas';
 import { GEMINI_MODEL } from './constants';
 import type { BridgeOutput } from '@/types';
-import { pulseBridgeTools, get_nearest_hospitals } from './tools';
+import { pulseBridgeTools, get_nearest_hospitals, get_route_traffic } from './tools';
 
 /**
  * PulseBridge Emergency Dispatch Agent system prompt.
@@ -13,8 +13,8 @@ const SYSTEM_PROMPT = `You are the PulseBridge Emergency Dispatch Agent. Your go
 CORE DIRECTIVES:
 1. MULTIMODAL ANALYSIS: Analyze images (medical reports, crash sites, leaks), audio transcriptions (distressed voice), or text instantly. Identify the Emergency Category.
 2. CONTEXTUAL GROUNDING: Use GPS coordinates and local time. Always use your 'get_nearest_hospitals' function if medical facilities are needed, using real coordinates.
-3. AGENTIC REASONING:
-   - If the user is injured → Call get_nearest_hospitals
+3. AGENTIC REASONING (PARALLEL TOOLS):
+   - If the user is injured → Call get_nearest_hospitals AND get_route_traffic simultaneously if you know a general destination (e.g., 'Hospital, City Name').
    - If the user speaks a non-native language → Detect it and provide translation natively in the handover card
    - If a medical report is uploaded → Extract vitals, history, and medications into structured data
 
@@ -25,7 +25,7 @@ STATUS: Must be "Urgent", "Critical", or "Informational"
 IMMEDIATE INSTRUCTION: Maximum 10 words. A direct command the user can act on RIGHT NOW.
 
 SERVICE PROVIDERS: Real service providers resulting from your tool calls. Include:
-- Name, Specialty, realistic ETA, Contact number, Verification Status
+- Name, Specialty, realistic ETA (use get_route_traffic traffic_duration), Contact number, Verification Status
 
 HANDOVER CARD: A structured data summary for the professional arriving on scene:
 - emergencyType: What kind of emergency
@@ -227,6 +227,9 @@ export async function processBridgeRequest(
               if (call.name === 'get_nearest_hospitals') {
                 const args = call.args as { latitude: number; longitude: number; query?: string; radius?: number };
                 funcResponseData = await get_nearest_hospitals(args);
+              } else if (call.name === 'get_route_traffic') {
+                const args = call.args as { origin_lat: number; origin_lng: number; destination_name: string };
+                funcResponseData = await get_route_traffic(args);
               } else {
                 funcResponseData = { error: 'Unknown function' };
               }
