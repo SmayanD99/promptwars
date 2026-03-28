@@ -1,4 +1,4 @@
-import { RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from './constants';
+import { RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS } from './constants';
 
 interface RateLimitEntry {
   timestamps: number[];
@@ -31,7 +31,7 @@ class RateLimiter {
 
     if (!entry) {
       this.store.set(ip, { timestamps: [now] });
-      return { allowed: true, remaining: RATE_LIMIT_MAX - 1, retryAfterMs: 0 };
+      return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1, retryAfterMs: 0 };
     }
 
     // Filter out timestamps outside the current window
@@ -39,7 +39,7 @@ class RateLimiter {
       (ts) => now - ts < RATE_LIMIT_WINDOW_MS
     );
 
-    if (entry.timestamps.length >= RATE_LIMIT_MAX) {
+    if (entry.timestamps.length >= RATE_LIMIT_MAX_REQUESTS) {
       const oldestInWindow = entry.timestamps[0];
       const retryAfterMs = RATE_LIMIT_WINDOW_MS - (now - oldestInWindow);
       return {
@@ -52,7 +52,7 @@ class RateLimiter {
     entry.timestamps.push(now);
     return {
       allowed: true,
-      remaining: RATE_LIMIT_MAX - entry.timestamps.length,
+      remaining: RATE_LIMIT_MAX_REQUESTS - entry.timestamps.length,
       retryAfterMs: 0,
     };
   }
