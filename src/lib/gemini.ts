@@ -67,6 +67,8 @@ export async function processBridgeRequest(
     toolConfig: {
       // @ts-ignore - Bypass undocumented requirement for built-in tool mixing in Gemni Flash
       includeServerSideToolInvocations: true,
+      // @ts-ignore
+      include_server_side_tool_invocations: true,
       functionCallingConfig: { mode: FunctionCallingMode.AUTO },
     },
     generationConfig: {
