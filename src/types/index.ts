@@ -31,6 +31,27 @@ export interface LocationMarker {
   address?: string;
 }
 
+/** Service provider entry for the Action Table */
+export interface ServiceProvider {
+  name: string;
+  specialty: string;
+  eta: string;
+  contact: string;
+  verificationStatus: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+}
+
+/** Handover Card entity data for responders */
+export interface HandoverCard {
+  emergencyType: string;
+  detectedLanguage: string;
+  translatedSummary: string;
+  entityData: Record<string, string>;
+  timestamp: string;
+}
+
 export interface BridgeInput {
   text?: string;
   fileBase64?: string;
@@ -42,11 +63,15 @@ export interface BridgeInput {
 }
 
 export interface BridgeOutput {
+  status: string;
+  immediateInstruction: string;
   summary: string;
   category: string;
   severity: SeverityLevel;
   actions: ActionItem[];
+  serviceProviders: ServiceProvider[];
   locations: LocationMarker[];
+  handoverCard: HandoverCard;
   warnings: string[];
   keyFacts: string[];
   sourceVerification: string;

@@ -62,33 +62,44 @@ export const LocationMarkerSchema = z.object({
   address: z.string().optional(),
 });
 
+/** Schema for service provider in the Action Table */
+export const ServiceProviderSchema = z.object({
+  name: z.string(),
+  specialty: z.string(),
+  eta: z.string(),
+  contact: z.string(),
+  verificationStatus: z.string(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  address: z.string().optional(),
+});
+
+/** Schema for the handover card */
+export const HandoverCardSchema = z.object({
+  emergencyType: z.string(),
+  detectedLanguage: z.string(),
+  translatedSummary: z.string(),
+  entityData: z.record(z.string()),
+  timestamp: z.string(),
+});
+
 /**
  * Schema for validating the structured output from Gemini.
- * This is used both as the JSON schema sent to Gemini and to validate its response.
+ * PulseBridge Emergency Dispatch format: STATUS → IMMEDIATE INSTRUCTION → ACTION TABLE → HANDOVER CARD
  */
 export const BridgeOutputSchema = z.object({
-  summary: z.string().describe('A clear, concise summary of the input and situation'),
-  category: z
-    .string()
-    .describe('Category of the request, e.g. Medical, Legal, Transit, Weather, Finance, General'),
-  severity: z
-    .enum(['info', 'low', 'medium', 'high', 'critical'])
-    .describe('Severity/urgency level of the situation'),
-  actions: z
-    .array(ActionItemSchema)
-    .describe('Ordered list of recommended actions the user should take'),
-  locations: z
-    .array(LocationMarkerSchema)
-    .describe('Relevant locations to show on a map (hospitals, shelters, etc.). Can be empty.'),
-  warnings: z
-    .array(z.string())
-    .describe('Important warnings or caveats about the information provided'),
-  keyFacts: z
-    .array(z.string())
-    .describe('Key facts extracted from the input'),
-  sourceVerification: z
-    .string()
-    .describe('Statement about how the information was verified or its reliability'),
+  status: z.enum(['Urgent', 'Critical', 'Informational']).describe('Emergency status level'),
+  immediateInstruction: z.string().describe('Max 10 words: immediate action to take NOW'),
+  summary: z.string().describe('Clear situation summary with detected emergency category'),
+  category: z.string().describe('Emergency category: Medical, Road Accident, Fire, Critical Infrastructure, Plumbing, Electric, or General'),
+  severity: z.enum(['info', 'low', 'medium', 'high', 'critical']).describe('Severity/urgency level'),
+  actions: z.array(ActionItemSchema).describe('Ordered list of recommended actions'),
+  serviceProviders: z.array(ServiceProviderSchema).describe('Nearby service providers with contact, specialty, ETA, and verification'),
+  locations: z.array(LocationMarkerSchema).describe('Relevant locations for the map (hospitals, stations, etc.)'),
+  handoverCard: HandoverCardSchema.describe('Structured entity data for responders arriving on scene'),
+  warnings: z.array(z.string()).describe('Important warnings or caveats'),
+  keyFacts: z.array(z.string()).describe('Key facts extracted from the input'),
+  sourceVerification: z.string().describe('How the information was verified'),
 });
 
 export type ValidatedBridgeInput = z.infer<typeof BridgeInputSchema>;

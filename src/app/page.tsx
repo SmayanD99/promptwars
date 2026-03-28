@@ -23,12 +23,11 @@ export default function Home() {
         {/* Hero */}
         <section className="hero-section" aria-label="Welcome">
           <h2 className="hero-title">
-            Transform Chaos into{' '}
-            <span className="hero-title-accent">Clarity</span>
+            Emergency <span className="hero-title-accent">Dispatch</span> Agent
           </h2>
           <p className="hero-description">
-            Throw anything at BridgeAI — a photo, a voice note, a messy document —
-            and get structured, verified, actionable intelligence in seconds.
+            Upload a photo of a crash site, describe an injury, send a medical report —
+            PulseBridge instantly converts it into structured, verified, life-saving actions.
           </p>
         </section>
 
@@ -64,14 +63,14 @@ export default function Home() {
             {!isLoading && !error && !result && (
               <div className="glass-card animate-fade-in" style={{ padding: 'var(--space-xl)', textAlign: 'center' }}>
                 <div style={{ fontSize: '3rem', marginBottom: 'var(--space-md)' }} aria-hidden="true">
-                  🌉
+                  🚨
                 </div>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: 'var(--space-sm)' }}>
-                  Ready to Bridge
+                  Ready to Dispatch
                 </h3>
                 <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-                  Your structured results will appear here. BridgeAI analyzes any input
-                  and converts it into clear, prioritized actions with verified information.
+                  Describe an emergency, upload a medical report, or take a photo.
+                  PulseBridge will analyze it and dispatch structured life-saving actions.
                 </p>
                 <div style={{
                   display: 'flex',
@@ -82,11 +81,11 @@ export default function Home() {
                 }}>
                   {[
                     { icon: '🏥', label: 'Medical' },
-                    { icon: '📄', label: 'Documents' },
-                    { icon: '🌪️', label: 'Emergency' },
-                    { icon: '🚌', label: 'Transit' },
-                    { icon: '⚖️', label: 'Legal' },
-                    { icon: '💰', label: 'Finance' },
+                    { icon: '🚗', label: 'Road Accident' },
+                    { icon: '🔥', label: 'Fire' },
+                    { icon: '🔧', label: 'Plumbing' },
+                    { icon: '⚡', label: 'Electrical' },
+                    { icon: '🌪️', label: 'Disaster' },
                   ].map(({ icon, label }) => (
                     <span key={label} className="key-fact-item" style={{ fontSize: '0.78rem' }}>
                       {icon} {label}
@@ -102,14 +101,14 @@ export default function Home() {
       {/* Footer */}
       <footer className="app-footer" role="contentinfo">
         <p>
-          BridgeAI — Powered by{' '}
+          PulseBridge — Powered by{' '}
           <a href="https://ai.google.dev" target="_blank" rel="noopener noreferrer">
-            Google Gemini
+            Google Gemini 3 Flash
           </a>{' '}
-          | Built for societal benefit 🌍
+          | Emergency Dispatch for societal benefit 🚨
         </p>
         <p style={{ marginTop: '0.25rem' }}>
-          Uses OpenStreetMap for mapping • Respects your privacy • No data stored
+          Uses Google Maps • Text-to-Speech alerts • Real-time dispatch • No data stored
         </p>
       </footer>
     </ErrorBoundary>

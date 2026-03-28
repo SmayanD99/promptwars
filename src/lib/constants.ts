@@ -1,10 +1,15 @@
-/** Maximum file size for uploads (10MB) */
-export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+/**
+ * Application-wide constants for PulseBridge.
+ * Centralized to avoid magic numbers and enable easy configuration.
+ */
 
-/** Maximum text input length (characters) */
+/** Maximum text input length in characters */
 export const MAX_TEXT_LENGTH = 10000;
 
-/** Allowed MIME types for file upload */
+/** Maximum file upload size in bytes (10MB) */
+export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+
+/** Allowed MIME types for file uploads */
 export const ALLOWED_MIME_TYPES = [
   'image/jpeg',
   'image/png',
@@ -12,39 +17,26 @@ export const ALLOWED_MIME_TYPES = [
   'image/gif',
   'application/pdf',
   'text/plain',
-  'text/csv',
 ] as const;
 
 /** Rate limit: max requests per window */
-export const RATE_LIMIT_MAX = 10;
-
-/** Rate limit: window duration in milliseconds (1 minute) */
+export const RATE_LIMIT_MAX_REQUESTS = 10;
 export const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 
 /** Gemini model to use */
 export const GEMINI_MODEL = 'gemini-3-flash-preview';
 
 /** App metadata */
-export const APP_NAME = 'BridgeAI';
+export const APP_NAME = 'PulseBridge';
 export const APP_DESCRIPTION =
-  'Universal bridge between human intent and complex systems. Transform unstructured inputs into structured, verified actions.';
-export const APP_URL = 'https://bridgeai.app';
+  'Emergency Dispatch Agent — Transform messy real-world inputs into structured, life-saving actions powered by Google Gemini.';
 
-/** Input placeholder examples */
+/** Example inputs for quick use */
 export const INPUT_EXAMPLES = [
-  'Upload a photo of medicine bottles to check for interactions',
-  'Paste a weather alert to get an evacuation plan',
-  'Describe symptoms in any language for triage guidance',
-  'Upload a legal notice for a plain-language summary',
-  'Share a transit schedule to find the best route',
-  'Upload a medical bill for cost breakdown',
-] as const;
-
-/** Severity colors (HSL) */
-export const SEVERITY_COLORS: Record<string, string> = {
-  info: '210, 100%, 60%',
-  low: '150, 70%, 50%',
-  medium: '45, 100%, 55%',
-  high: '25, 100%, 55%',
-  critical: '0, 85%, 55%',
-} as const;
+  'I fell off my bike and my arm is bent at an odd angle. I\'m bleeding from my knee.',
+  'There is a major water leak in my basement. Water is spraying from a pipe near the heater.',
+  'I see smoke coming from the apartment next door and I smell burning plastic.',
+  'Car accident on highway, two vehicles involved, one person is not responding.',
+  'My elderly mother\'s blood pressure report shows 180/110 and she\'s complaining of headache.',
+  'Power lines are down on my street after the storm. Sparks are visible.',
+];

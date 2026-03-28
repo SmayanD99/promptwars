@@ -1,36 +1,47 @@
-import { GoogleGenerativeAI, Part, SchemaType } from '@google/generative-ai';
+import { GoogleGenerativeAI, Part, SchemaType, Tool } from '@google/generative-ai';
 import { BridgeOutputSchema, type ValidatedBridgeInput } from './schemas';
 import { GEMINI_MODEL } from './constants';
 import type { BridgeOutput } from '@/types';
+import { pulseBridgeTools, get_nearest_hospitals } from './tools';
 
 /**
- * System prompt that instructs Gemini to act as a universal bridge.
- * It produces structured, actionable output from any unstructured input.
+ * PulseBridge Emergency Dispatch Agent system prompt.
+ * Powered by Gemini — bridges messy real-world input into structured life-saving action.
  */
-const SYSTEM_PROMPT = `You are BridgeAI, a universal translator between unstructured human inputs and structured, actionable intelligence. Your purpose is to take ANY input — a photo, a voice transcription, a document, a description, a URL, or raw data — and convert it into clear, verified, structured actions that can save lives, save time, or simplify complexity.
+const SYSTEM_PROMPT = `You are the PulseBridge Emergency Dispatch Agent. Your goal is to bridge the gap between "Messy Real-World Input" and "Structured Life-Saving Action." Do not just describe the situation; SOLVE IT.
 
-CORE PRINCIPLES:
-1. UNDERSTAND: Identify what the input is about, regardless of format or language.
-2. STRUCTURE: Extract key facts, identify urgency, categorize the situation.
-3. VERIFY: Cross-reference facts where possible. Flag uncertainty explicitly.
-4. ACT: Provide clear, prioritized, actionable steps the user should take.
-5. LOCATE: If relevant, identify physical locations (hospitals, shelters, offices) with coordinates.
+CORE DIRECTIVES:
+1. MULTIMODAL ANALYSIS: Analyze images (medical reports, crash sites, leaks), audio transcriptions (distressed voice), or text instantly. Identify the Emergency Category.
+2. CONTEXTUAL GROUNDING: Use GPS coordinates and local time. Always use your 'get_nearest_hospitals' function if medical facilities are needed, using real coordinates.
+3. AGENTIC REASONING:
+   - If the user is injured → Call get_nearest_hospitals
+   - If the user speaks a non-native language → Detect it and provide translation natively in the handover card
+   - If a medical report is uploaded → Extract vitals, history, and medications into structured data
+
+OUTPUT PROTOCOL (MANDATORY JSON):
+
+STATUS: Must be "Urgent", "Critical", or "Informational"
+
+IMMEDIATE INSTRUCTION: Maximum 10 words. A direct command the user can act on RIGHT NOW.
+
+SERVICE PROVIDERS: Real service providers resulting from your tool calls. Include:
+- Name, Specialty, realistic ETA, Contact number, Verification Status
+
+HANDOVER CARD: A structured data summary for the professional arriving on scene:
+- emergencyType: What kind of emergency
+- detectedLanguage: What language the user communicated in
+- translatedSummary: English translation of the situation
+- entityData: Key-value pairs of relevant data (age, injury type, pipe material, medication, vitals, etc.)
 
 RULES:
-- Always produce valid JSON matching the required schema.
-- Be compassionate but precise. Lives may depend on your accuracy.
-- If you're unsure about something, say so in the warnings field.
-- Never invent medical dosages, legal advice numbers, or financial figures.
-- Always suggest professional consultation for medical, legal, or financial matters.
-- If the input is in a non-English language, respond in that language while keeping field names in English.
-- For images: describe what you see, extract any text (OCR), and analyze context.
-- severity should reflect real urgency: "critical" = immediate danger, "high" = act today, "medium" = act this week, "low" = informational, "info" = general knowledge.
-- Include at least one action item, even if it's just "No immediate action required."
-- For locations, provide realistic latitude/longitude coordinates based on context clues.`;
+- NEVER give generic advice. Be specific and actionable.
+- Always use the tools provided to find real facilities.
+- Always use Google Search grounding for real-world awareness (traffic checks, news, hours).
+- severity maps: "critical" = call emergency services NOW, "high" = act within the hour, "medium" = act today, "low" = schedule action, "info" = informational only.
+- For the handoverCard timestamp, use ISO 8601 format.`;
 
 /**
  * Initialize the Gemini client.
- * Throws if GEMINI_API_KEY is not set.
  */
 function getGeminiClient(): GoogleGenerativeAI {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -43,9 +54,7 @@ function getGeminiClient(): GoogleGenerativeAI {
 }
 
 /**
- * Process a bridge request through Gemini.
- * Handles text, images, and files as multimodal input.
- * Returns structured, validated output.
+ * Process a bridge request through Gemini via an Agentic Loop.
  */
 export async function processBridgeRequest(
   input: ValidatedBridgeInput
@@ -54,11 +63,18 @@ export async function processBridgeRequest(
   const model = genAI.getGenerativeModel({
     model: GEMINI_MODEL,
     systemInstruction: SYSTEM_PROMPT,
+    tools: pulseBridgeTools as Tool[],
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: {
         type: SchemaType.OBJECT,
         properties: {
+          status: {
+            type: SchemaType.STRING,
+            format: 'enum',
+            enum: ['Urgent', 'Critical', 'Informational'],
+          },
+          immediateInstruction: { type: SchemaType.STRING },
           summary: { type: SchemaType.STRING },
           category: { type: SchemaType.STRING },
           severity: {
@@ -90,6 +106,23 @@ export async function processBridgeRequest(
               required: ['title', 'description', 'priority', 'type'],
             },
           },
+          serviceProviders: {
+            type: SchemaType.ARRAY,
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                name: { type: SchemaType.STRING },
+                specialty: { type: SchemaType.STRING },
+                eta: { type: SchemaType.STRING },
+                contact: { type: SchemaType.STRING },
+                verificationStatus: { type: SchemaType.STRING },
+                latitude: { type: SchemaType.NUMBER },
+                longitude: { type: SchemaType.NUMBER },
+                address: { type: SchemaType.STRING },
+              },
+              required: ['name', 'specialty', 'eta', 'contact', 'verificationStatus'],
+            },
+          },
           locations: {
             type: SchemaType.ARRAY,
             items: {
@@ -104,16 +137,34 @@ export async function processBridgeRequest(
               required: ['name', 'latitude', 'longitude', 'type'],
             },
           },
+          handoverCard: {
+            type: SchemaType.OBJECT,
+            properties: {
+              emergencyType: { type: SchemaType.STRING },
+              detectedLanguage: { type: SchemaType.STRING },
+              translatedSummary: { type: SchemaType.STRING },
+              entityData: {
+                type: SchemaType.OBJECT,
+                properties: {},
+              },
+              timestamp: { type: SchemaType.STRING },
+            },
+            required: ['emergencyType', 'detectedLanguage', 'translatedSummary', 'entityData', 'timestamp'],
+          },
           warnings: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
           keyFacts: { type: SchemaType.ARRAY, items: { type: SchemaType.STRING } },
           sourceVerification: { type: SchemaType.STRING },
         },
         required: [
+          'status',
+          'immediateInstruction',
           'summary',
           'category',
           'severity',
           'actions',
+          'serviceProviders',
           'locations',
+          'handoverCard',
           'warnings',
           'keyFacts',
           'sourceVerification',
@@ -122,44 +173,83 @@ export async function processBridgeRequest(
     },
   });
 
-  // Build multimodal parts array
-  const parts: Part[] = [];
+  // Build multimodal parts array for initial prompt
+  const initialParts: Part[] = [];
 
-  // Add text content
   if (input.text) {
     let contextualText = input.text;
     if (input.latitude && input.longitude) {
       contextualText += `\n\n[User's approximate location: ${input.latitude}, ${input.longitude}]`;
     }
-    parts.push({ text: contextualText });
+    contextualText += `\n\n[Current time: ${new Date().toISOString()}]`;
+    initialParts.push({ text: contextualText });
   }
 
-  // Add file/image content
   if (input.fileBase64 && input.fileMimeType) {
-    parts.push({
+    initialParts.push({
       inlineData: {
         data: input.fileBase64,
         mimeType: input.fileMimeType,
       },
     });
 
-    // If no text provided with image, add a generic prompt
     if (!input.text) {
-      parts.push({
-        text: 'Analyze this input thoroughly. Extract all relevant information, identify any urgency, and provide structured actionable steps.',
+      initialParts.push({
+        text: `Analyze this input as the PulseBridge Emergency Dispatch Agent. Identify the emergency category, extract all relevant data, call local tools if necessary, and finally return the structured JSON dispatch. Current time: ${new Date().toISOString()}`,
       });
     }
   }
 
-  // Call Gemini with retry logic for rate limits
   const MAX_RETRIES = 3;
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const result = await model.generateContent(parts);
-      const response = result.response;
-      const text = response.text();
+      // Start an Agentic Chat Loop
+      const chat = model.startChat();
+      
+      // Send initial prompt
+      let result = await chat.sendMessage(initialParts);
+      
+      // Handle Function Calls (Multi-turn Tool Loop)
+      let functionCalls = result.response.functionCalls();
+      
+      // Simple loop to handle up to 3 sequential tool calls
+      let loopCount = 0;
+      while (functionCalls && functionCalls.length > 0 && loopCount < 3) {
+        loopCount++;
+        
+        // Execute the tools in parallel
+        const functionResponses = await Promise.all(
+          functionCalls.map(async (call) => {
+            let funcResponseData;
+            try {
+              if (call.name === 'get_nearest_hospitals') {
+                const args = call.args as { latitude: number; longitude: number; query?: string; radius?: number };
+                funcResponseData = await get_nearest_hospitals(args);
+              } else {
+                funcResponseData = { error: 'Unknown function' };
+              }
+            } catch (err) {
+              funcResponseData = { error: String(err) };
+            }
+
+            return {
+              functionResponse: {
+                name: call.name,
+                response: funcResponseData as Record<string, any>,
+              },
+            };
+          })
+        );
+        
+        // Send tool results back to Gemini
+        result = await chat.sendMessage(functionResponses);
+        functionCalls = result.response.functionCalls();
+      }
+
+      // Final structured output
+      const text = result.response.text();
 
       // Parse and validate the JSON response
       let parsed: unknown;
@@ -169,7 +259,6 @@ export async function processBridgeRequest(
         throw new Error('Gemini returned invalid JSON. Please try again.');
       }
 
-      // Validate against our Zod schema
       const validated = BridgeOutputSchema.safeParse(parsed);
 
       if (!validated.success) {
@@ -184,29 +273,26 @@ export async function processBridgeRequest(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
 
-      // Check for rate limit / quota errors
       const msg = lastError.message;
       if (msg.includes('429') || msg.includes('quota') || msg.includes('Too Many Requests')) {
         if (msg.includes('limit: 0') || msg.includes('FreeTier')) {
-          // Quota fully exhausted — no point retrying
           throw new Error(
-            'Gemini API free tier quota exhausted. Please enable billing on your Google AI project at https://aistudio.google.com/apikey or use a new API key.'
+            'Gemini API free tier quota exhausted. Please enable billing or update your API key.'
           );
         }
 
-        // Transient rate limit — retry with exponential backoff
         if (attempt < MAX_RETRIES - 1) {
-          const delayMs = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+          const delayMs = Math.pow(2, attempt + 1) * 1000;
           console.warn(`Rate limited. Retrying in ${delayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`);
           await new Promise((resolve) => setTimeout(resolve, delayMs));
           continue;
         }
       }
 
-      // Non-retryable error — throw immediately
       throw lastError;
     }
   }
 
   throw lastError || new Error('Unexpected error after retries');
 }
+
