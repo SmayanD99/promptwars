@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI, Part, SchemaType, Tool } from '@google/generative-ai';
+import { GoogleGenerativeAI, Part, SchemaType, Tool, FunctionCallingMode } from '@google/generative-ai';
 import { BridgeOutputSchema, type ValidatedBridgeInput } from './schemas';
 import { GEMINI_MODEL } from './constants';
 import type { BridgeOutput } from '@/types';
@@ -64,6 +64,11 @@ export async function processBridgeRequest(
     model: GEMINI_MODEL,
     systemInstruction: SYSTEM_PROMPT,
     tools: pulseBridgeTools as Tool[],
+    toolConfig: {
+      // @ts-ignore - Bypass undocumented requirement for built-in tool mixing in Gemni Flash
+      includeServerSideToolInvocations: true,
+      functionCallingConfig: { mode: FunctionCallingMode.AUTO },
+    },
     generationConfig: {
       responseMimeType: 'application/json',
       responseSchema: {
