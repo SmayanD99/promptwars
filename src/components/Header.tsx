@@ -11,8 +11,8 @@ export function Header() {
             ⚡
           </div>
           <div>
-            <h1 className="header-title">PulseBridge</h1>
-            <p className="header-subtitle">Emergency Dispatch Agent</p>
+            <h1 className="header-title">BridgeAI</h1>
+            <p className="header-subtitle">Powered by PulseBridge</p>
           </div>
         </div>
         <span className="header-badge" aria-label="Powered by Gemini AI">

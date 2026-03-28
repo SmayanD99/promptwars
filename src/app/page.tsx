@@ -23,11 +23,12 @@ export default function Home() {
         {/* Hero */}
         <section className="hero-section" aria-label="Welcome">
           <h2 className="hero-title">
-            Emergency <span className="hero-title-accent">Dispatch</span> Agent
+            <span className="hero-title-accent">Bridge</span>AI Dispatch
           </h2>
           <p className="hero-description">
-            Upload a photo of a crash site, describe an injury, send a medical report —
-            PulseBridge instantly converts it into structured, verified, life-saving actions.
+            The mission-critical bridge between messy real-world input and life-saving action.
+            Snap a photo, record an alert, or upload a report — 
+            BridgeAI instantly orchestrates the recovery with verified Google intelligence.
           </p>
         </section>
 
@@ -101,14 +102,14 @@ export default function Home() {
       {/* Footer */}
       <footer className="app-footer" role="contentinfo">
         <p>
-          PulseBridge — Powered by{' '}
+          BridgeAI — Powered by{' '}
           <a href="https://ai.google.dev" target="_blank" rel="noopener noreferrer">
             Google Gemini 3 Flash
           </a>{' '}
-          | Emergency Dispatch for societal benefit 🚨
+          | Orchestrating for societal benefit 🚨
         </p>
         <p style={{ marginTop: '0.25rem' }}>
-          Uses Google Maps • Text-to-Speech alerts • Real-time dispatch • No data stored
+          Uses Google Maps • Workspace Archiving • Verification Telemetry • Text-to-Speech
         </p>
       </footer>
     </ErrorBoundary>

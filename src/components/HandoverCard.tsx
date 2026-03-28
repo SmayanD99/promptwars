@@ -18,7 +18,7 @@ export const HandoverCard: React.FC<HandoverCardProps> = ({ data }) => {
     <div className="handover-card">
       <h3 className="handover-title">
         📋 Handover Card
-        <span className="header-badge" style={{ marginLeft: 'auto' }}>Agentic Dispatch</span>
+        <span className="header-badge" style={{ marginLeft: 'auto' }}>BridgeAI Orchestrator</span>
       </h3>
       <pre className="handover-pre">
         {JSON.stringify(data, null, 2)}
